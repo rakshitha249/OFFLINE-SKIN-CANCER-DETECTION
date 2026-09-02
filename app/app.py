@@ -190,6 +190,39 @@ if uploaded_file is not None:
                 st.markdown("---")
                 
                 # -----------------------------------------------------------------------------
+                # UNCERTAINTY ASSESSMENT
+                # -----------------------------------------------------------------------------
+                st.subheader("Uncertainty Assessment")
+                
+                probability_margin = abs(probability - 0.5)
+                margin_percentage = probability_margin * 100
+                
+                if probability_margin < 0.10:
+                    conf_interpretation = "Low confidence / uncertain prediction"
+                    conf_explanation = "The model probabilities are relatively close to each other, indicating low separation between the two classes."
+                    msg = (f"**Model confidence:** {conf_interpretation}\n\n"
+                           f"**Prediction separation:** {margin_percentage:.1f} percentage points\n\n"
+                           f"{conf_explanation}\n\n"
+                           "⚠ Uncertain prediction: the model probabilities are relatively close. This result should be interpreted cautiously.")
+                    st.warning(msg)
+                elif probability_margin < 0.25:
+                    conf_interpretation = "Moderate confidence"
+                    conf_explanation = "The model shows a moderate preference toward the predicted class."
+                    msg = (f"**Model confidence:** {conf_interpretation}\n\n"
+                           f"**Prediction separation:** {margin_percentage:.1f} percentage points\n\n"
+                           f"{conf_explanation}")
+                    st.info(msg)
+                else:
+                    conf_interpretation = "Higher model confidence"
+                    conf_explanation = "The model shows a stronger preference toward the predicted class."
+                    msg = (f"**Model confidence:** {conf_interpretation}\n\n"
+                           f"**Prediction separation:** {margin_percentage:.1f} percentage points\n\n"
+                           f"{conf_explanation}")
+                    st.success(msg)
+
+                st.markdown("---")
+                
+                # -----------------------------------------------------------------------------
                 # GRAD-CAM EXPLAINABILITY
                 # -----------------------------------------------------------------------------
                 st.subheader("Explainability (Grad-CAM)")

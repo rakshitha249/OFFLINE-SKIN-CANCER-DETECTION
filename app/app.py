@@ -60,6 +60,83 @@ def load_model():
 model, device = load_model()
 
 # -----------------------------------------------------------------------------
+# IMAGE QUALITY ASSESSMENT
+# -----------------------------------------------------------------------------
+def assess_image_quality(image):
+    """
+    Calculates basic image-quality indicators before analysis.
+    Checks resolution, brightness, and sharpness.
+    """
+    # 1. RESOLUTION
+    width, height = image.size
+    if width < 224 or height < 224:
+        resolution_status = "Low"
+    elif width < 400 or height < 400:
+        resolution_status = "Acceptable"
+    else:
+        resolution_status = "Good"
+        
+    # 2. BRIGHTNESS
+    # Convert image to RGB then grayscale
+    img_gray = image.convert('RGB').convert('L')
+    img_gray_np = np.array(img_gray)
+    mean_brightness = np.mean(img_gray_np)
+    
+    if mean_brightness < 40:
+        brightness_status = "Very Dark"
+    elif mean_brightness < 70:
+        brightness_status = "Dark"
+    elif mean_brightness < 191:
+        brightness_status = "Normal"
+    elif mean_brightness <= 220:
+        brightness_status = "Bright"
+    else:
+        brightness_status = "Very Bright"
+        
+    # 3. SHARPNESS
+    # Calculate horizontal and vertical pixel differences using np.diff
+    diff_x = np.diff(img_gray_np, axis=1)
+    diff_y = np.diff(img_gray_np, axis=0)
+    sharpness = np.var(diff_x) + np.var(diff_y)
+    
+    if sharpness < 20:
+        sharpness_status = "Very Blurry"
+    elif sharpness < 50:
+        sharpness_status = "Blurry"
+    elif sharpness < 150:
+        sharpness_status = "Acceptable"
+    else:
+        sharpness_status = "Good"
+        
+    # 4. OVERALL QUALITY
+    problems = []
+    if resolution_status == "Low":
+        problems.append("Image resolution is low.")
+    if brightness_status in ["Very Dark", "Very Bright"]:
+        problems.append("Image brightness may affect analysis.")
+    if sharpness_status in ["Very Blurry", "Blurry"]:
+        problems.append("Image appears blurry.")
+        
+    if len(problems) == 0:
+        overall_quality = "Good"
+    elif len(problems) == 1:
+        overall_quality = "Acceptable"
+    else:
+        overall_quality = "Needs Attention"
+        
+    return {
+        "width": width,
+        "height": height,
+        "brightness": mean_brightness,
+        "brightness_status": brightness_status,
+        "sharpness": sharpness,
+        "sharpness_status": sharpness_status,
+        "resolution_status": resolution_status,
+        "overall_quality": overall_quality,
+        "problems": problems
+    }
+
+# -----------------------------------------------------------------------------
 # SIDEBAR
 # -----------------------------------------------------------------------------
 # Add model information to the sidebar
@@ -125,6 +202,42 @@ if uploaded_file is not None:
         
         # Display the uploaded image
         st.image(image, caption="Uploaded Image", use_container_width=True)
+        
+        st.markdown("---")
+        
+        # -----------------------------------------------------------------------------
+        # IMAGE QUALITY ASSESSMENT DISPLAY
+        # -----------------------------------------------------------------------------
+        quality_data = assess_image_quality(image)
+        
+        st.subheader("Image Quality Assessment")
+        
+        if quality_data["overall_quality"] == "Good":
+            msg = (f"**Overall quality:** {quality_data['overall_quality']}  \n"
+                   f"**Resolution:** {quality_data['width']} × {quality_data['height']}  \n"
+                   f"**Brightness:** {quality_data['brightness_status']}  \n"
+                   f"**Sharpness:** {quality_data['sharpness_status']}")
+            st.success(msg)
+        elif quality_data["overall_quality"] == "Acceptable":
+            msg = (f"**Overall quality:** {quality_data['overall_quality']}  \n"
+                   f"**Resolution:** {quality_data['width']} × {quality_data['height']}  \n"
+                   f"**Brightness:** {quality_data['brightness_status']}  \n"
+                   f"**Sharpness:** {quality_data['sharpness_status']}  \n\n"
+                   "**Problems:**\n")
+            for prob in quality_data["problems"]:
+                msg += f"- {prob}\n"
+            st.warning(msg)
+        else:
+            msg = (f"**Overall quality:** {quality_data['overall_quality']}  \n"
+                   f"**Resolution:** {quality_data['width']} × {quality_data['height']}  \n"
+                   f"**Brightness:** {quality_data['brightness_status']}  \n"
+                   f"**Sharpness:** {quality_data['sharpness_status']}  \n\n"
+                   "**Problems:**\n")
+            for prob in quality_data["problems"]:
+                msg += f"- {prob}\n"
+            st.error(msg)
+            
+        st.caption("*(Note: Image quality indicators may affect model reliability.)*")
         
         st.markdown("---")
         

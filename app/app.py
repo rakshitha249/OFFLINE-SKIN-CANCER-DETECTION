@@ -6,6 +6,10 @@ from torchvision import models, transforms
 import numpy as np
 from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
+import os
+import csv
+from datetime import datetime
+
 
 # Set the page configuration for a professional look
 st.set_page_config(
@@ -135,6 +139,68 @@ def assess_image_quality(image):
         "overall_quality": overall_quality,
         "problems": problems
     }
+
+# -----------------------------------------------------------------------------
+# PREDICTION HISTORY
+# -----------------------------------------------------------------------------
+def save_prediction_history(image_name, prediction, malignant_probability, non_malignant_probability, confidence, image_quality):
+    """
+    Saves the prediction results to a local CSV file.
+    Creates the file and header if it doesn't exist.
+    """
+    history_dir = "history"
+    history_file = os.path.join(history_dir, "prediction_history.csv")
+    
+    # Ensure directory exists just in case
+    os.makedirs(history_dir, exist_ok=True)
+    
+    file_exists = os.path.isfile(history_file)
+    
+    with open(history_file, mode='a', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        
+        # Write header if newly created
+        if not file_exists:
+            writer.writerow([
+                "timestamp", 
+                "image_name", 
+                "prediction", 
+                "malignant_probability", 
+                "non_malignant_probability", 
+                "confidence", 
+                "image_quality"
+            ])
+            
+        # Write the new row
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        writer.writerow([
+            timestamp,
+            image_name,
+            prediction,
+            malignant_probability,
+            non_malignant_probability,
+            confidence,
+            image_quality
+        ])
+
+def load_prediction_history():
+    """
+    Loads prediction history from the local CSV file.
+    Returns a list of dictionaries, or an empty list if no history exists.
+    """
+    history_file = os.path.join("history", "prediction_history.csv")
+    if not os.path.isfile(history_file) or os.path.getsize(history_file) == 0:
+        return []
+        
+    records = []
+    try:
+        with open(history_file, mode='r', newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                records.append(row)
+    except Exception:
+        pass
+    return records
 
 # -----------------------------------------------------------------------------
 # SIDEBAR
@@ -382,7 +448,77 @@ if uploaded_file is not None:
                 # Display Grad-CAM image
                 st.image(cam_image, caption="Grad-CAM Heatmap", use_container_width=True)
                 st.caption("Red/Yellow regions indicate areas the model focused on heavily to make its prediction.")
+                
+                # -----------------------------------------------------------------------------
+                # SAVE PREDICTION HISTORY
+                # -----------------------------------------------------------------------------
+                save_prediction_history(
+                    image_name=uploaded_file.name,
+                    prediction=prediction_text,
+                    malignant_probability=float(probability),
+                    non_malignant_probability=float(1.0 - probability),
+                    confidence=conf_interpretation,
+                    image_quality=quality_data["overall_quality"]
+                )
 
     except Exception as e:
         # Handle invalid/corrupted images gracefully
         st.error(f"Error processing the uploaded image. Please ensure it is a valid image file. Details: {e}")
+
+# -----------------------------------------------------------------------------
+# PREDICTION HISTORY UI
+# -----------------------------------------------------------------------------
+st.markdown("---")
+st.subheader("Prediction History")
+
+history_records = load_prediction_history()
+
+if not history_records:
+    st.info("No prediction history available yet.")
+else:
+    # Newest record first
+    history_records.reverse()
+    
+    formatted_history = []
+    for record in history_records:
+        try:
+            mal_prob_str = record.get("malignant_probability")
+            non_mal_prob_str = record.get("non_malignant_probability")
+            
+            if mal_prob_str is None or non_mal_prob_str is None:
+                continue
+                
+            mal_prob = float(mal_prob_str) * 100
+            non_mal_prob = float(non_mal_prob_str) * 100
+            
+            formatted_history.append({
+                "Timestamp": record.get("timestamp", ""),
+                "Image": record.get("image_name", ""),
+                "Prediction": record.get("prediction", ""),
+                "Malignant %": f"{mal_prob:.1f}%",
+                "Non-malignant %": f"{non_mal_prob:.1f}%",
+                "Confidence": record.get("confidence", ""),
+                "Image Quality": record.get("image_quality", "")
+            })
+        except (ValueError, TypeError):
+            # Skip malformed row
+            continue
+            
+    if not formatted_history:
+        st.info("No valid prediction history available.")
+    else:
+        st.caption(f"Total Analyses: {len(formatted_history)}")
+        st.dataframe(
+            formatted_history, 
+            use_container_width=False,
+            hide_index=True,
+            column_config={
+                "Timestamp": st.column_config.TextColumn(width="medium"),
+                "Image": st.column_config.TextColumn(width="medium"),
+                "Prediction": st.column_config.TextColumn(width="medium"),
+                "Malignant %": st.column_config.TextColumn(width="small"),
+                "Non-malignant %": st.column_config.TextColumn(width="small"),
+                "Confidence": st.column_config.TextColumn(width="large"),
+                "Image Quality": st.column_config.TextColumn(width="medium"),
+            }
+        )

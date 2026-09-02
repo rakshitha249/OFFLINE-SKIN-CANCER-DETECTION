@@ -174,13 +174,27 @@ if uploaded_file is not None:
                 non_malignant_percentage = 100.0 - prob_percentage
                 
                 st.subheader("Model Output")
-                st.markdown(f"**Malignant-Suspicious probability:** {prob_percentage:.1f}%")
+                col1, col2 = st.columns(2)
                 
-                # Add a progress bar to visually represent the malignant/suspicious probability
+                with col1:
+                    st.metric(
+                        "Malignant-Suspicious",
+                        f"{prob_percentage:.1f}%"
+                    )
+                
+                with col2:
+                    st.metric(
+                        "Non-malignant",
+                        f"{non_malignant_percentage:.1f}%"
+                    )
+                
+                st.markdown("**Prediction probability**")
                 st.progress(float(probability))
                 
-                st.markdown(f"**Non-malignant probability:** {non_malignant_percentage:.1f}%")
-                st.caption("*(Note: This probability is a statistical model output, not a measure of medical certainty.)*")
+                st.caption(
+                    "*(Note: This probability is a statistical model output, "
+                    "not a measure of medical certainty.)*"
+                )
                 
                 st.info(interpretation)
                 

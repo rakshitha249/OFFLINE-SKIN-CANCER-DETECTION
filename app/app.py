@@ -157,11 +157,11 @@ if uploaded_file is not None:
                 # Label 0 = Non-malignant, Label 1 = Malignant-Suspicious
                 if predicted_label == 1:
                     prediction_text = "Malignant-Suspicious"
-                    interpretation = "The model classified this image as malignant/suspicious."
+                    interpretation = "The model assigned a higher probability to the malignant/suspicious class."
                     color = "red"
                 else:
                     prediction_text = "Non-malignant"
-                    interpretation = "The model classified this image as non-malignant."
+                    interpretation = "The model assigned a lower probability to the malignant/suspicious class."
                     color = "green"
                 
                 # Display Results
@@ -172,6 +172,7 @@ if uploaded_file is not None:
                 # Format probability as a percentage (e.g., 73.7%)
                 prob_percentage = probability * 100
                 st.markdown(f"**Malignant-Suspicious probability:** {prob_percentage:.1f}%")
+                st.caption("*(Note: This probability is a statistical model output, not a measure of medical certainty.)*")
                 
                 st.info(interpretation)
                 

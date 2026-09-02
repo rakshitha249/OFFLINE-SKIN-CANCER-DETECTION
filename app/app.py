@@ -169,9 +169,17 @@ if uploaded_file is not None:
                 
                 st.markdown(f"**Prediction:** <span style='color:{color}; font-size: 20px;'>{prediction_text}</span>", unsafe_allow_html=True)
                 
-                # Format probability as a percentage (e.g., 73.7%)
+                # Format probabilities as percentages
                 prob_percentage = probability * 100
+                non_malignant_percentage = 100.0 - prob_percentage
+                
+                st.subheader("Model Output")
                 st.markdown(f"**Malignant-Suspicious probability:** {prob_percentage:.1f}%")
+                
+                # Add a progress bar to visually represent the malignant/suspicious probability
+                st.progress(float(probability))
+                
+                st.markdown(f"**Non-malignant probability:** {non_malignant_percentage:.1f}%")
                 st.caption("*(Note: This probability is a statistical model output, not a measure of medical certainty.)*")
                 
                 st.info(interpretation)

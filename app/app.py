@@ -29,6 +29,10 @@ def load_model():
     # Automatically use CUDA if available, otherwise CPU
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
+    checkpoint_path = "models/best_finetuned_model.pth"
+    if not os.path.exists(checkpoint_path):
+        return None, device
+        
     # Recreate the exact EfficientNet-B0 architecture
     # weights=None ensures we don't attempt to download ImageNet weights (Offline mode)
     model = models.efficientnet_b0(weights=None)
@@ -43,7 +47,6 @@ def load_model():
     )
     
     # Load the trained checkpoint
-    checkpoint_path = "models/best_finetuned_model.pth"
     checkpoint = torch.load(
         checkpoint_path,
         map_location=device,
@@ -62,6 +65,10 @@ def load_model():
 
 # Load the model and get the device
 model, device = load_model()
+
+if model is None:
+    st.error("Model checkpoint is missing. The application cannot perform predictions until the trained model is supplied at 'models/best_finetuned_model.pth'. This is a local/offline application.")
+    st.stop()
 
 # -----------------------------------------------------------------------------
 # IMAGE QUALITY ASSESSMENT
@@ -229,9 +236,9 @@ st.write(
 
 # Prominent medical disclaimer using Streamlit's warning box
 st.warning(
-    "**Disclaimer:** This application is an educational/research prototype and is "
-    "**NOT** a medical diagnostic tool. Predictions should not be used to diagnose "
-    "or treat skin cancer."
+    "**Disclaimer:** This project is an AI research and educational prototype. "
+    "Model probabilities represent statistical outputs from the trained model and are not measures of medical certainty. "
+    "The system is not a medical diagnostic device and should not be used to make clinical decisions."
 )
 
 st.markdown("---")
@@ -277,33 +284,34 @@ if uploaded_file is not None:
         quality_data = assess_image_quality(image)
         
         st.subheader("Image Quality Assessment")
+        st.caption("This assessment describes properties of the uploaded image and does not validate the model prediction.")
         
-        if quality_data["overall_quality"] == "Good":
-            msg = (f"**Overall quality:** {quality_data['overall_quality']}  \n"
-                   f"**Resolution:** {quality_data['width']} × {quality_data['height']}  \n"
-                   f"**Brightness:** {quality_data['brightness_status']}  \n"
-                   f"**Sharpness:** {quality_data['sharpness_status']}")
-            st.success(msg)
-        elif quality_data["overall_quality"] == "Acceptable":
-            msg = (f"**Overall quality:** {quality_data['overall_quality']}  \n"
-                   f"**Resolution:** {quality_data['width']} × {quality_data['height']}  \n"
-                   f"**Brightness:** {quality_data['brightness_status']}  \n"
-                   f"**Sharpness:** {quality_data['sharpness_status']}  \n\n"
-                   "**Problems:**\n")
-            for prob in quality_data["problems"]:
-                msg += f"- {prob}\n"
-            st.warning(msg)
-        else:
-            msg = (f"**Overall quality:** {quality_data['overall_quality']}  \n"
-                   f"**Resolution:** {quality_data['width']} × {quality_data['height']}  \n"
-                   f"**Brightness:** {quality_data['brightness_status']}  \n"
-                   f"**Sharpness:** {quality_data['sharpness_status']}  \n\n"
-                   "**Problems:**\n")
-            for prob in quality_data["problems"]:
-                msg += f"- {prob}\n"
-            st.error(msg)
+        with st.container():
+            st.markdown(f"**Overall image quality: {quality_data['overall_quality']}**")
             
-        st.caption("*(Note: Image quality indicators may affect model reliability.)*")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.markdown("**Resolution**")
+                st.write(f"{quality_data['width']} × {quality_data['height']}")
+                st.caption(quality_data['resolution_status'])
+            with col2:
+                st.markdown("**Brightness**")
+                st.write(f"{quality_data['brightness']:.1f}")
+                st.caption(quality_data['brightness_status'])
+            with col3:
+                st.markdown("**Sharpness**")
+                st.write(f"{quality_data['sharpness']:.1f}")
+                st.caption(quality_data['sharpness_status'])
+            
+            if quality_data["overall_quality"] == "Good":
+                st.info("The image characteristics are within the preferred range.")
+            else:
+                warn_msg = "Prediction is still generated, but the image-quality assessment indicates that the uploaded image has characteristics outside the preferred range:\n"
+                for prob in quality_data["problems"]:
+                    warn_msg += f"- {prob}\n"
+                st.warning(warn_msg)
+                
+            st.caption("Image quality assessment is separate from the model prediction and does not indicate whether the prediction is correct.")
         
         st.markdown("---")
         
@@ -336,118 +344,123 @@ if uploaded_file is not None:
                 # Label 0 = Non-malignant, Label 1 = Malignant-Suspicious
                 if predicted_label == 1:
                     prediction_text = "Malignant-Suspicious"
-                    interpretation = "The model assigned a higher probability to the malignant/suspicious class."
-                    color = "red"
                 else:
                     prediction_text = "Non-malignant"
-                    interpretation = "The model assigned a lower probability to the malignant/suspicious class."
-                    color = "green"
                 
-                # Display Results
+                # -----------------------------------------------------------------------------
+                # ANALYSIS RESULTS HIERARCHY
+                # -----------------------------------------------------------------------------
                 st.subheader("Analysis Results")
                 
-                st.markdown(f"**Prediction:** <span style='color:{color}; font-size: 20px;'>{prediction_text}</span>", unsafe_allow_html=True)
-                
-                # Format probabilities as percentages
-                prob_percentage = probability * 100
-                non_malignant_percentage = 100.0 - prob_percentage
-                
-                st.subheader("Model Output")
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.metric(
-                        "Malignant-Suspicious",
-                        f"{prob_percentage:.1f}%"
+                with st.container():
+                    # A. Model Prediction
+                    st.markdown("### A. Model prediction")
+                    st.markdown(f"<span style='font-size: 24px; font-weight: bold;'>{prediction_text}</span>", unsafe_allow_html=True)
+                    st.caption("Based on the established decision threshold applied to the model's output probability.")
+                    
+                    st.markdown("---")
+                    
+                    # B. Estimated model probability
+                    st.markdown("### B. Estimated model probability")
+                    prob_percentage = probability * 100
+                    non_malignant_percentage = 100.0 - prob_percentage
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric("Malignant-Suspicious probability", f"{prob_percentage:.1f}%")
+                    with col2:
+                        st.metric("Non-malignant probability", f"{non_malignant_percentage:.1f}%")
+                        
+                    st.progress(float(probability))
+                    st.caption("*(Note: This probability is a statistical model output, not a measure of medical certainty.)*")
+                    
+                    st.markdown("---")
+                    
+                    # C. Decision threshold
+                    st.markdown("### C. Decision threshold context")
+                    st.info(
+                        "**Decision threshold: 50.0%**\n\n"
+                        "At the current threshold, probabilities at or above 50% produce the **Malignant-Suspicious** model output. "
+                        "Probabilities below 50% produce the **Non-malignant** model output."
+                    )
+                    
+                    st.markdown("---")
+                    
+                    # D. Model output strength (Threshold distance logic)
+                    st.markdown("### D. Model output strength")
+                    probability_margin = abs(probability - 0.5)
+                    margin_percentage = probability_margin * 100
+                    
+                    if probability_margin < 0.10:
+                        conf_interpretation = "Near-threshold model output"
+                        st.info(f"**{conf_interpretation}**\n\n"
+                                "The estimated model probability is close to the current decision threshold, so the classification is sensitive to small changes in model output.")
+                        st.caption(f"**Distance from decision threshold:** {margin_percentage:.1f} percentage points")
+                    elif probability_margin < 0.25:
+                        conf_interpretation = "Moderate distance from threshold"
+                        st.info(f"**{conf_interpretation}**\n\n"
+                                "The model probability is neither very close to nor far from the current decision threshold.")
+                        st.caption(f"**Distance from decision threshold:** {margin_percentage:.1f} percentage points")
+                    else:
+                        conf_interpretation = "Model output is farther from the decision threshold."
+                        st.info(f"**{conf_interpretation}**\n\n"
+                                "The model probability is farther from the current classification threshold.")
+                        st.caption(f"**Distance from decision threshold:** {margin_percentage:.1f} percentage points")
+                        
+                    st.markdown("---")
+                    
+                    # E. Safety disclaimer
+                    st.markdown("### E. Safety disclaimer")
+                    st.warning(
+                        "**Disclaimer:** This project is an AI research and educational prototype. "
+                        "Model probabilities represent statistical outputs from the trained model and are not measures of medical certainty. "
+                        "The system is not a medical diagnostic device and should not be used to make clinical decisions."
                     )
                 
-                with col2:
-                    st.metric(
-                        "Non-malignant",
-                        f"{non_malignant_percentage:.1f}%"
-                    )
-                
-                st.markdown("**Prediction probability**")
-                st.progress(float(probability))
-                
-                st.caption(
-                    "*(Note: This probability is a statistical model output, "
-                    "not a measure of medical certainty.)*"
-                )
-                
-                st.info(interpretation)
-                
-                # Display the visible disclaimer again near the result
-                st.caption("*This result is generated by an AI research prototype and is not a medical diagnosis.*")
-                
-                st.markdown("---")
-                
-                # -----------------------------------------------------------------------------
-                # UNCERTAINTY ASSESSMENT
-                # -----------------------------------------------------------------------------
-                st.subheader("Uncertainty Assessment")
-                
-                probability_margin = abs(probability - 0.5)
-                margin_percentage = probability_margin * 100
-                
-                if probability_margin < 0.10:
-                    conf_interpretation = "Low confidence / uncertain prediction"
-                    conf_explanation = "The model probabilities are relatively close to each other, indicating low separation between the two classes."
-                    msg = (f"**Model confidence:** {conf_interpretation}\n\n"
-                           f"**Prediction separation:** {margin_percentage:.1f} percentage points\n\n"
-                           f"{conf_explanation}\n\n"
-                           "⚠ Uncertain prediction: the model probabilities are relatively close. This result should be interpreted cautiously.")
-                    st.warning(msg)
-                elif probability_margin < 0.25:
-                    conf_interpretation = "Moderate confidence"
-                    conf_explanation = "The model shows a moderate preference toward the predicted class."
-                    msg = (f"**Model confidence:** {conf_interpretation}\n\n"
-                           f"**Prediction separation:** {margin_percentage:.1f} percentage points\n\n"
-                           f"{conf_explanation}")
-                    st.info(msg)
-                else:
-                    conf_interpretation = "Higher model confidence"
-                    conf_explanation = "The model shows a stronger preference toward the predicted class."
-                    msg = (f"**Model confidence:** {conf_interpretation}\n\n"
-                           f"**Prediction separation:** {margin_percentage:.1f} percentage points\n\n"
-                           f"{conf_explanation}")
-                    st.success(msg)
-
                 st.markdown("---")
                 
                 # -----------------------------------------------------------------------------
                 # GRAD-CAM EXPLAINABILITY
                 # -----------------------------------------------------------------------------
-                st.subheader("Explainability (Grad-CAM)")
+                st.subheader("Grad-CAM Explainability")
+                st.markdown("Grad-CAM is an explainability visualization that highlights image regions that contributed more strongly to the model output. It describes model behavior and is not a medical diagnostic map.")
                 
-                # Preprocessing for the visualization overlay (Float [0, 1] numpy array)
-                vis_img = img_rgb.resize((224, 224))
-                vis_img_np = np.array(vis_img, dtype=np.float32) / 255.0
-                
-                # Target layer configuration for EfficientNet-B0
-                target_layer = model.features[-1][0]
-                target_layers = [target_layer]
-                
-                # Custom target for a single binary logit model
-                class BinaryLogitTarget:
-                    def __call__(self, model_output):
-                        return model_output.reshape(-1)[0]
-                
-                targets = [BinaryLogitTarget()]
-                
-                # Initialize Grad-CAM
-                cam = GradCAM(model=model, target_layers=target_layers)
-                
-                # Generate heatmap
-                with torch.enable_grad():
-                    grayscale_cam = cam(input_tensor=input_tensor, targets=targets)
-                
-                grayscale_cam = grayscale_cam[0, :]
-                cam_image = show_cam_on_image(vis_img_np, grayscale_cam, use_rgb=True)
-                
-                # Display Grad-CAM image
-                st.image(cam_image, caption="Grad-CAM Heatmap", use_container_width=True)
-                st.caption("Red/Yellow regions indicate areas the model focused on heavily to make its prediction.")
+                try:
+                    # Preprocessing for the visualization overlay (Float [0, 1] numpy array)
+                    vis_img = img_rgb.resize((224, 224))
+                    vis_img_np = np.array(vis_img, dtype=np.float32) / 255.0
+                    
+                    # Target layer configuration for EfficientNet-B0
+                    target_layer = model.features[-1][0]
+                    target_layers = [target_layer]
+                    
+                    # Custom target for a single binary logit model
+                    class BinaryLogitTarget:
+                        def __call__(self, model_output):
+                            return model_output.reshape(-1)[0]
+                    
+                    targets = [BinaryLogitTarget()]
+                    
+                    # Initialize Grad-CAM
+                    cam = GradCAM(model=model, target_layers=target_layers)
+                    
+                    # Generate heatmap
+                    with torch.enable_grad():
+                        grayscale_cam = cam(input_tensor=input_tensor, targets=targets)
+                    
+                    grayscale_cam = grayscale_cam[0, :]
+                    cam_image = show_cam_on_image(vis_img_np, grayscale_cam, use_rgb=True)
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.image(vis_img, caption="Uploaded image", use_container_width=True)
+                    with col2:
+                        st.image(cam_image, caption="Grad-CAM overlay", use_container_width=True)
+                    
+                    st.caption("Highlighted regions indicate areas contributing more strongly to the model output.")
+                    st.caption("Grad-CAM provides a visual explanation of the current model output; it does not establish the medical meaning of the highlighted region.")
+                except Exception:
+                    st.warning("Grad-CAM visualization could not be generated for this image.")
                 
                 # -----------------------------------------------------------------------------
                 # SAVE PREDICTION HISTORY
@@ -470,16 +483,20 @@ if uploaded_file is not None:
 # -----------------------------------------------------------------------------
 st.markdown("---")
 st.subheader("Prediction History")
+st.caption("Previous model outputs recorded locally during this application's use. Prediction history is stored locally in history/prediction_history.csv.")
 
 history_records = load_prediction_history()
 
 if not history_records:
-    st.info("No prediction history available yet.")
+    st.info("No prediction history is available yet.")
 else:
     # Newest record first
     history_records.reverse()
     
     formatted_history = []
+    malignant_count = 0
+    non_malignant_count = 0
+    
     for record in history_records:
         try:
             mal_prob_str = record.get("malignant_probability")
@@ -491,14 +508,20 @@ else:
             mal_prob = float(mal_prob_str) * 100
             non_mal_prob = float(non_mal_prob_str) * 100
             
+            prediction_val = record.get("prediction", "")
+            if "Malignant" in prediction_val and "Non" not in prediction_val:
+                malignant_count += 1
+            elif "Non-malignant" in prediction_val:
+                non_malignant_count += 1
+                
             formatted_history.append({
                 "Timestamp": record.get("timestamp", ""),
                 "Image": record.get("image_name", ""),
-                "Prediction": record.get("prediction", ""),
-                "Malignant %": f"{mal_prob:.1f}%",
-                "Non-malignant %": f"{non_mal_prob:.1f}%",
-                "Confidence": record.get("confidence", ""),
-                "Image Quality": record.get("image_quality", "")
+                "Model prediction": prediction_val,
+                "Malignant probability": f"{mal_prob:.1f}%",
+                "Non-malignant probability": f"{non_mal_prob:.1f}%",
+                "Model output strength": record.get("confidence", ""),
+                "Image quality": record.get("image_quality", "")
             })
         except (ValueError, TypeError):
             # Skip malformed row
@@ -507,18 +530,20 @@ else:
     if not formatted_history:
         st.info("No valid prediction history available.")
     else:
-        st.caption(f"Total Analyses: {len(formatted_history)}")
+        st.markdown(f"**Total recorded model outputs: {len(formatted_history)}** "
+                    f"(Malignant-Suspicious: {malignant_count}, Non-malignant: {non_malignant_count})")
+                    
         st.dataframe(
             formatted_history, 
-            use_container_width=False,
+            use_container_width=True,
             hide_index=True,
             column_config={
                 "Timestamp": st.column_config.TextColumn(width="medium"),
                 "Image": st.column_config.TextColumn(width="medium"),
-                "Prediction": st.column_config.TextColumn(width="medium"),
-                "Malignant %": st.column_config.TextColumn(width="small"),
-                "Non-malignant %": st.column_config.TextColumn(width="small"),
-                "Confidence": st.column_config.TextColumn(width="large"),
-                "Image Quality": st.column_config.TextColumn(width="medium"),
+                "Model prediction": st.column_config.TextColumn(width="medium"),
+                "Malignant probability": st.column_config.TextColumn(width="small"),
+                "Non-malignant probability": st.column_config.TextColumn(width="small"),
+                "Model output strength": st.column_config.TextColumn(width="large"),
+                "Image quality": st.column_config.TextColumn(width="medium"),
             }
         )

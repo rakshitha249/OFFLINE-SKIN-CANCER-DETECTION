@@ -9,6 +9,9 @@ from pytorch_grad_cam.utils.image import show_cam_on_image
 import os
 import csv
 from datetime import datetime
+import json
+import hashlib
+import secrets
 
 
 # Set the page configuration for a professional look
@@ -18,6 +21,108 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="expanded"
 )
+
+# -----------------------------------------------------------------------------
+# LOCAL AUTHENTICATION
+# -----------------------------------------------------------------------------
+AUTH_FILE = os.path.join("auth", "users.json")
+
+def load_users():
+    if not os.path.exists(AUTH_FILE):
+        return {}
+    try:
+        with open(AUTH_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        st.error("Authentication file is corrupted.")
+        st.stop()
+
+def save_users(users):
+    os.makedirs(os.path.dirname(AUTH_FILE), exist_ok=True)
+    try:
+        with open(AUTH_FILE, "w", encoding="utf-8") as f:
+            json.dump(users, f, indent=4)
+    except Exception:
+        st.error("Failed to save credentials.")
+        st.stop()
+
+def hash_password(password, salt_hex=None):
+    if salt_hex is None:
+        salt = secrets.token_bytes(32)
+        salt_hex = salt.hex()
+    else:
+        salt = bytes.fromhex(salt_hex)
+    
+    # Use PBKDF2-HMAC-SHA256 with 100,000 iterations
+    key = hashlib.pbkdf2_hmac(
+        'sha256', 
+        password.encode('utf-8'), 
+        salt, 
+        100000
+    )
+    return salt_hex, key.hex()
+
+def verify_password(stored_salt, stored_hash, provided_password):
+    _, computed_hash = hash_password(provided_password, salt_hex=stored_salt)
+    return secrets.compare_digest(stored_hash, computed_hash)
+
+# Initialize authentication session state
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
+
+users = load_users()
+
+if not users:
+    # First User Setup
+    st.title("Offline AI Research Prototype")
+    st.subheader("First User Setup")
+    st.write("No local accounts exist. Create the primary workspace account to begin.")
+    
+    with st.form("setup_form"):
+        new_username = st.text_input("Choose a username")
+        new_password = st.text_input("Choose a password", type="password")
+        confirm_password = st.text_input("Confirm password", type="password")
+        submit_setup = st.form_submit_button("Create Account")
+        
+        if submit_setup:
+            if not new_username or not new_password:
+                st.error("Username and password are required.")
+            elif len(new_password) < 8:
+                st.error("Password must be at least 8 characters.")
+            elif new_password != confirm_password:
+                st.error("Passwords do not match.")
+            else:
+                salt, pwd_hash = hash_password(new_password)
+                users[new_username] = {
+                    "salt": salt,
+                    "hash": pwd_hash
+                }
+                save_users(users)
+                st.success("Account created successfully. Please log in.")
+                st.rerun()
+    st.stop()
+else:
+    # Login Flow
+    if not st.session_state["authenticated"]:
+        st.title("Offline AI Research Prototype")
+        st.write("Sign in to access the local analysis workspace.")
+        
+        with st.form("login_form"):
+            login_username = st.text_input("Username")
+            login_password = st.text_input("Password", type="password")
+            submit_login = st.form_submit_button("Login")
+            
+            if submit_login:
+                if login_username in users:
+                    user_data = users[login_username]
+                    if verify_password(user_data["salt"], user_data["hash"], login_password):
+                        st.session_state["authenticated"] = True
+                        st.rerun()
+                    else:
+                        st.error("Invalid username or password.")
+                else:
+                    st.error("Invalid username or password.")
+        st.stop()
 
 # -----------------------------------------------------------------------------
 # MODEL LOADING (CACHED)
@@ -222,6 +327,10 @@ st.sidebar.markdown(f"""
 - **Inference:** Local / Offline
 - **Device:** {device.type.upper()}
 """)
+
+if st.sidebar.button("Logout"):
+    st.session_state["authenticated"] = False
+    st.rerun()
 
 # -----------------------------------------------------------------------------
 # MAIN CONTENT AREA

@@ -1,0 +1,11 @@
+metric,value,unit,split,model,threshold
+Accuracy,0.6847,proportion,test,Fine-tuned EfficientNet-B0,0.50
+Precision,0.3953,proportion,test,Fine-tuned EfficientNet-B0,0.50
+Recall,0.9088,proportion,test,Fine-tuned EfficientNet-B0,0.50
+Specificity,0.6241,proportion,test,Fine-tuned EfficientNet-B0,0.50
+F1,0.5510,proportion,test,Fine-tuned EfficientNet-B0,0.50
+ROC-AUC,0.8537,proportion,test,Fine-tuned EfficientNet-B0,Not applicable
+True Negatives,734,count,test,Fine-tuned EfficientNet-B0,0.50
+False Positives,442,count,test,Fine-tuned EfficientNet-B0,0.50
+False Negatives,29,count,test,Fine-tuned EfficientNet-B0,0.50
+True Positives,289,count,test,Fine-tuned EfficientNet-B0,0.50

@@ -1,111 +1,92 @@
-# Offline Skin Cancer Detection
+# Offline Skin Lesion Analyzer
 
-This project is an AI research and educational prototype for offline image-based binary classification of skin lesions.
+An offline AI research and educational prototype for analyzing skin-lesion images using a fine-tuned EfficientNet-B0 binary classifier, with model probability outputs, threshold context, image-quality analysis, Grad-CAM explainability, local prediction history, and local authentication.
 
 > [!WARNING]
 > **Safety Disclaimer:** This project is an AI research and educational prototype. Model probabilities represent statistical outputs from the trained model and are not measures of medical certainty. The system is not a medical diagnostic device and should not be used to make clinical decisions.
 
 ---
 
-## Overview
+## 1. Project Overview
 
-The Offline Skin Cancer Detection project demonstrates an end-to-end machine learning pipeline, from dataset preparation to offline inference. It provides a local web application where users can upload an image of a skin lesion and receive a model-based classification.
+The Offline Skin Lesion Analyzer demonstrates a complete, offline machine learning pipeline focusing on computer vision and interpretability. It was built to explore binary classification of skin lesions, prioritizing rigorous dataset handling (preventing leakage through lesion-grouped splits) and transparent model outputs. The system provides a fully local Streamlit web application that runs inferences securely without cloud dependencies. As a research and educational prototype, it explores how deep learning models respond to complex biological image data while actively rejecting clinical diagnostic claims.
 
-The application operates completely offline and prioritizes interpretability by providing an estimated model probability, heuristic image-quality assessment, and Grad-CAM explainability visualizations to describe model behavior.
-
----
-
-## Key Features
+## 2. Key Features
 
 - **Offline image inference:** All processing is conducted locally without cloud dependencies.
-- **EfficientNet-B0 binary classification:** Utilizes a fine-tuned EfficientNet-B0 model.
-- **Estimated model probability:** Provides probabilistic scores alongside a strict 0.50 decision threshold.
-- **Threshold-distance/model-output-strength information:** Contextualizes the classification sensitivity based on threshold proximity.
-- **Image-quality assessment:** Programmatic evaluation of image resolution, brightness, and sharpness.
-- **Grad-CAM explainability visualization:** Highlights image regions contributing more strongly to the model output.
+- **Fine-tuned EfficientNet-B0:** Uses a customized convolutional neural network for inference.
+- **Binary classification:** Distinguishes between Non-malignant and Malignant-Suspicious image patterns.
+- **Estimated model probabilities:** Provides continuous probabilistic scores derived via Sigmoid activation.
+- **Decision-threshold context:** Explains outputs relative to a strict 0.50 decision boundary.
+- **Threshold-distance interpretation:** Contextualizes the classification sensitivity based on threshold proximity.
+- **Image-quality assessment:** Heuristic evaluation of image resolution, brightness, and sharpness.
+- **Grad-CAM explainability:** Visualizes the spatial regions contributing most to the model's prediction.
 - **Local prediction history:** Logs application usage and model outputs to a local CSV file.
-- **Graceful missing-model/error handling:** Robust UI handling for missing PyTorch checkpoints and corrupted image inputs.
+- **Local authentication:** Secures application access via PBKDF2-HMAC-SHA256 password hashing.
+- **Light/Dark/System UI support:** Fully responsive Streamlit interface natively adapting to OS themes.
 
----
+## 3. System Architecture
 
-## Technology Stack
+```mermaid
+flowchart TD
+    User([User])
+    UI[Streamlit UI]
+    Upload[Image Upload]
+    Preproc[Image Preprocessing]
+    Model[EfficientNet-B0]
+    Prob[Sigmoid Probability]
+    Thresh{Decision Threshold}
+    Pred[Model Prediction]
+    Hist[(Local Prediction History)]
+    Auth[Local Authentication]
 
-- **Python** 
-- **PyTorch / torchvision** (Model architecture and training)
-- **EfficientNet-B0** (Base model architecture)
-- **Streamlit** (Local web application interface)
-- **NumPy** & **Pandas** (Data manipulation and history tracking)
-- **Pillow** (Image loading and processing)
-- **pytorch-grad-cam** (Explainability visualizations)
-- **scikit-learn** (Metrics and data splitting)
-- **Matplotlib** (Evaluation artifact generation)
+    User -->|Login| Auth
+    Auth -->|Success| UI
+    User -->|Upload Image| UI
+    UI --> Upload
+    Upload --> Preproc
+    Preproc --> Model
+    Model --> Prob
+    Prob --> Thresh
+    Thresh --> Pred
 
----
+    Pred --> OutProb[Probability]
+    Pred --> OutQual[Image Quality]
+    Pred --> OutCam[Grad-CAM]
 
-## Dataset
+    OutProb --> Hist
+    OutQual --> Hist
+    OutCam --> Hist
+```
 
-This project utilizes the publicly available HAM10000 / ISIC dataset. 
+## 4. Machine Learning Pipeline
 
-The original dataset features seven diagnostic classes:
-`NV`, `BKL`, `MEL`, `BCC`, `AKIEC`, `VASC`, `DF`
+The project follows a rigorous end-to-end ML pipeline:
+Dataset → Metadata processing → Binary label mapping → Grouped train/validation/test split → Image preprocessing/augmentation → Model training → Fine-tuning → Validation model selection → Held-out test evaluation → Error analysis.
 
-For this research prototype, the classes are mapped into a binary schema:
+**Binary Mapping:**
+To simplify the complex seven-class dataset for this educational binary prototype, the classes are mapped as follows:
+- **Non-malignant:** NV, BKL, DF, VASC
+- **Malignant-Suspicious:** MEL, BCC, AKIEC
 
-### Non-malignant
-- `NV`
-- `BKL`
-- `DF`
-- `VASC`
+*This binary grouping is a project-specific mapping for statistical evaluation and is not equivalent to a clinical diagnosis.*
 
-### Malignant-Suspicious
-- `MEL`
-- `BCC`
-- `AKIEC`
+## 5. Dataset
 
-*Note: This binary mapping enables the model to output a single statistical probability for research and educational analysis. It does not establish clinical severities.*
+The project relies on the publicly available HAM10000 / ISIC dataset, which originally contains 10,015 dermatoscopic images categorized into seven diagnostic classes. The raw dataset is grouped into the binary schema detailed above. Due to GitHub repository size limits and licensing best practices, the raw dataset is **not** committed to Git. Users wishing to replicate the training must download the HAM10000 dataset independently.
 
----
+## 6. Model
 
-## Dataset Splitting
+- **Architecture:** EfficientNet-B0 (fine-tuned)
+- **Classification Setup:** Binary classification with a customized linear head.
+- **Input Image Size:** 224x224 RGB.
+- **Preprocessing/Normalization:** Standard ImageNet normalization (`mean=[0.485, 0.456, 0.406]`, `std=[0.229, 0.224, 0.225]`).
+- **Output Interpretation:** A single binary logit passed through a Sigmoid activation to produce an estimated model probability between 0 and 1.
+- **Decision Threshold:** The application is currently configured to use a `0.50` threshold. This is the application classification threshold, not a clinically optimized boundary.
 
-To evaluate the model rigorously, the dataset is split using `GroupShuffleSplit` grouping by `lesion_id`. Grouping ensures that multiple images of the exact same physical lesion remain exclusively within the same dataset split, strictly preventing data leakage.
+## 7. Model Evaluation
 
-The approximate split sizes are:
-- **Training:** ~70%
-- **Validation:** ~15%
-- **Test:** ~15% (Exactly 1494 images held out exclusively for final evaluation)
-
----
-
-## Methodology
-
-The pipeline follows these high-level steps:
-1. Dataset preparation and binary label mapping.
-2. Lesion-grouped splitting to prevent data leakage.
-3. Training augmentations applied to balance class representations.
-4. EfficientNet-B0 initialization and fine-tuning.
-5. Model validation and best checkpoint selection.
-6. Held-out test evaluation.
-
-See [Dataset and Methodology](reports/dataset_and_methodology.md) for the detailed dataset preparation, splitting, preprocessing, training, and evaluation methodology.
-See [System Architecture](reports/architecture.md) for the complete training and inference pipeline.
-
----
-
-## Model
-
-- **Architecture:** The project uses an EfficientNet-B0 backbone.
-- **Classification Head:** The final layers are adapted for a binary classification task.
-- **Output:** The model produces a single binary logit, which a Sigmoid function converts into an estimated model probability between 0 and 1.
-- **Threshold:** A 0.50 decision threshold determines the final classification.
-
-The model produces a statistical output that is converted to an estimated model probability. This output is not a measure of medical certainty, and the 0.50 threshold is not a clinically optimized boundary.
-
----
-
-## Evaluation Results
-
-These results describe the model's statistical performance on the held-out test set (1494 images) and do not represent clinical validation.
+The model was rigorously evaluated on an exclusively held-out test set containing 1494 images. These results represent the project's held-out statistical performance and **should not** be interpreted as clinical validation or universal real-world performance.
 
 | Metric | Result |
 |---|---:|
@@ -113,105 +94,116 @@ These results describe the model's statistical performance on the held-out test 
 | Precision | 39.53% |
 | Recall / Sensitivity | 90.88% |
 | Specificity | 62.41% |
-| F1 Score | 55.10% |
+| F1-score | 55.10% |
 | ROC-AUC | 85.37% |
 
-The fine-tuned model achieved an ROC-AUC of 85.37%. At the 0.50 application threshold, it demonstrated high recall (90.88%) alongside lower precision due to a substantial number of false positive predictions. 
+**Confusion Matrix (Threshold = 0.50):**
+- True Negatives (TN) = 734
+- False Positives (FP) = 442
+- False Negatives (FN) = 29
+- True Positives (TP) = 289
 
-See [Results and Evaluation](reports/results_and_evaluation.md) for detailed metrics, confusion matrix analysis, and baseline comparisons.
+*Note: ROC-AUC evaluates the model's discriminative capability across all possible thresholds, whereas the other metrics are dependent on the specific 0.50 threshold.*
 
----
+## 8. Baseline vs Fine-Tuned Model
 
-## Error Analysis
+A comparison was conducted between the initial baseline training and the fine-tuned checkpoint on the held-out test set:
 
-A comprehensive error analysis was conducted on the held-out test set predictions at the 0.50 threshold:
-- False positives were dominated by `NV` and `BKL`.
-- `NV` and `BKL` together accounted for approximately 97.3% of all false positives.
-- False negatives were dominated by `MEL`.
-- `MEL` accounted for approximately 82.8% of all false negatives.
-- Errors occurred both near and farther from the 0.50 threshold, indicating complex visual overlaps in the dataset.
+| Metric | Baseline | Fine-tuned | Change |
+|---|---|---|---|
+| Accuracy | 65.80% | 68.47% | Increased |
+| Precision | 37.61% | 39.53% | Increased |
+| Recall | 92.14% | 90.88% | Decreased slightly |
+| Specificity | 58.67% | 62.41% | Increased |
+| F1 | 53.42% | 55.10% | Increased |
+| ROC-AUC | 82.50% | 85.37% | Increased |
 
-For detailed analysis grids and insights, see [Error Analysis Report](reports/error_analysis_report.md).
+The fine-tuning process improved the model's overall discriminative ability (higher ROC-AUC), reduced false positives (improved Specificity and Precision), and increased overall Accuracy and F1-score, with a negligible trade-off in Recall.
 
----
+## 9. Threshold Analysis
 
-## Application
+A detailed threshold analysis was performed across boundaries from 0.10 to 0.90. As expected, threshold-dependent metrics (Accuracy, Precision, Recall, Specificity) change significantly as the threshold moves. The 0.50 threshold is simply the current default application configuration for this research prototype. It was not chosen via test-set threshold optimization, nor is it a clinically optimized threshold. ROC-AUC (85.37%) remains a reliable holistic indicator since it does not depend on selecting a single threshold.
 
-The project provides a Streamlit application (`app/app.py`) for offline inference.
+## 10. Error Analysis
 
-### Model Prediction
-The application displays the model prediction, the estimated model probability (for both classes), and the 0.50 decision threshold context. It calculates the mathematical distance from the threshold to indicate the model output strength.
+An extensive error analysis was conducted on the 471 total errors made on the held-out test set:
+- **False Positives:** 442 instances. The non-malignant classes NV and BKL account for the large majority of these false positives, indicating that the model struggles to distinguish them from malignant lesions under the current binary grouping.
+- **False Negatives:** 29 instances. MEL accounts for the majority of these false negatives.
+This analysis strictly documents model behavior on the held-out test set. No medical conclusions can or should be drawn from these individual image errors.
 
-### Image Quality
-Programmatic evaluation of resolution, brightness, and sharpness. These are presented as image characteristics to provide heuristic feedback regarding the quality of the uploaded file.
+## 11. Explainability
 
-### Grad-CAM
-Grad-CAM provides an explainability visualization showing image regions that contributed more strongly to the model output. Grad-CAM describes model behavior and is not a medical diagnostic map.
+The application implements Grad-CAM (Gradient-weighted Class Activation Mapping). Grad-CAM provides a visualization of image regions that contributed more strongly to the model output. It is intended strictly to help inspect and understand model behavior from a computer vision perspective. It is **not** a medical diagnostic map and should not be interpreted as clinical evidence.
 
-### Prediction History
-Model outputs are stored locally in a CSV file at `history/prediction_history.csv`. 
-The schema includes: `timestamp`, `image_name`, `prediction`, `malignant_probability`, `non_malignant_probability`, `confidence`, and `image_quality`. 
-This is a session log, not a patient or medical record.
+## 12. Image Quality Analysis
 
----
+The application performs basic programmatic image-quality checks during upload, calculating heuristics for:
+- Resolution
+- Brightness
+- Sharpness
 
-## System Architecture
+These provide basic input-quality information to the user and are entirely separate from the deep learning model prediction. Favorable image quality does not guarantee prediction reliability.
 
-See [System Architecture](reports/architecture.md) for the complete training and inference pipeline, including flow diagrams of the dataset handling and Streamlit UI.
+## 13. Authentication
 
----
+The system secures the UI using a local authentication implementation:
+- Local username and password authentication.
+- Users are stored locally in `auth/users.json`.
+- Passwords are securely hashed using `PBKDF2-HMAC-SHA256` with randomly generated salts.
+- Sessions are managed securely via local Streamlit session state.
+- There is no cloud authentication, OAuth, or external authentication service involved.
+- For security, `auth/users.json` is strictly excluded from Git version control.
 
-## Project Structure
+## 14. Prediction History
+
+To facilitate session review, predictions are stored locally:
+- The history file is located at `history/prediction_history.csv`.
+- Stored fields include the timestamp, original image name, prediction, probabilities, model output strength, and image quality heuristics.
+- This is a local application history and is **not** committed to Git.
+
+## 15. Technology Stack
+
+| Category | Technology |
+|---|---|
+| **Language** | Python |
+| **Machine Learning** | PyTorch, Torchvision |
+| **Image Processing** | Pillow, OpenCV |
+| **Data Handling** | NumPy, Pandas |
+| **Visualization** | Matplotlib |
+| **Application UI** | Streamlit |
+| **Explainability** | pytorch-grad-cam |
+| **Authentication** | Python standard library `hashlib`, `secrets` |
+| **Version Control** | Git, GitHub |
+
+## 16. Project Structure
 
 ```text
 OFFLINE-SKIN-CANCER-DETECTION/
-│
 ├── app/
-│   └── app.py                        # Streamlit web application
-│
+│   └── app.py
 ├── src/
-│   ├── analyze_dataset.py            # Dataset exploration and statistics
-│   ├── compare_models.py             # Script to compare baseline vs fine-tuned
-│   ├── create_binary_dataset.py      # Script mapping HAM10000 to binary labels
-│   ├── create_error_grids.py         # Script to generate visual error analysis grids
-│   ├── create_splits.py              # Lesion-grouped Train/Val/Test splitting
-│   ├── dataset.py                    # PyTorch Dataset definitions
-│   ├── error_analysis.py             # Script to generate error analysis CSVs
-│   ├── evaluate.py                   # Held-out test set evaluation script
-│   ├── finetune.py                   # Model fine-tuning script
-│   ├── model.py                      # EfficientNet-B0 architecture setup
-│   ├── threshold_analysis.py         # Script analyzing metrics across thresholds
-│   └── train.py                      # Initial model training script
-│
+│   ├── analyze_dataset.py
+│   ├── create_binary_dataset.py
+│   ├── create_splits.py
+│   ├── dataset.py
+│   ├── evaluate.py
+│   ├── finetune.py
+│   ├── model.py
+│   └── train.py
 ├── data/
-│   ├── raw/                          # Directory for downloaded HAM10000 images/metadata
-│   └── processed/                    # Directory for generated CSV splits
-│
-├── models/                           # Directory for saved PyTorch checkpoints (.pth)
-│
-├── history/
-│   └── prediction_history.csv        # Local log of application predictions
-│
-├── reports/                          # Generated markdown reports, CSVs, and PNG charts
-│
-├── requirements.txt                  # Python package dependencies
-├── .gitignore                        # Git exclusion rules
-└── README.md                         # Project documentation
+│   ├── raw/                  # Excluded from Git
+│   └── processed/            # Excluded from Git
+├── models/                   # Excluded from Git
+├── reports/
+├── history/                  # Excluded from Git
+├── auth/                     # Excluded from Git
+├── requirements.txt
+├── README.md
+└── .gitignore
 ```
+*Note: Directories marked as excluded from Git are created locally at runtime or data-prep time.*
 
----
-
-## Visual Demo
-
-A complete set of application interface documentation is available in the [Visual Portfolio Guide](reports/portfolio_visuals.md). 
-
-*(Note: Screenshots are pending manual capture to guarantee authenticity and avoid automated mock-ups).*
-
----
-
-## Installation
-
-Ensure you have Python installed (version 3.9+ recommended). 
+## 17. Installation
 
 1. **Clone the repository:**
    ```bash
@@ -219,90 +211,74 @@ Ensure you have Python installed (version 3.9+ recommended).
    cd OFFLINE-SKIN-CANCER-DETECTION
    ```
 
-2. **Create and activate a virtual environment:**
+2. **Create a virtual environment:**
    ```bash
    python -m venv .venv
-   
-   # On Windows:
-   .venv\Scripts\activate
-   
-   # On macOS/Linux:
-   source .venv/bin/activate
    ```
 
-3. **Install dependencies:**
+3. **Activate the environment:**
+   - *Windows (Git Bash):* `source .venv/Scripts/activate`
+   - *Windows (PowerShell):* `.\.venv\Scripts\Activate.ps1`
+   - *macOS/Linux:* `source .venv/bin/activate`
+
+4. **Install dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
 
----
+**Important:** A fresh clone does not immediately run inference. You must supply a trained model checkpoint (e.g., `best_finetuned_model.pth`) inside the `models/` directory, which is excluded from Git due to file size constraints.
 
-## Reproducibility and Limitations
+## 18. Running the Application
 
-**Important Note for Fresh Clones:**
-To keep the repository footprint small and comply with hosting limits, raw datasets, processed split files, and `.pth` model checkpoints are intentionally excluded from version control (`.gitignore`).
+Once the environment is configured and the model checkpoint is present in `models/`:
 
-Therefore, a fresh clone **does not immediately contain the dataset or trained checkpoint required for local inference**. 
-
-You must either:
-1. Obtain the HAM10000 dataset, place it in `data/raw/`, and reproduce the training process using the scripts provided in `src/`.
-2. Provide the trained checkpoint (`best_finetuned_model.pth`) manually and place it in the `models/` directory.
-
-Please see the comprehensive [Reproducibility and Limitations](reports/reproducibility_and_limitations.md) report for detailed documentation on fresh clone requirements, dataset specifics, training workflows, test-set constraints, and performance limitations.
-
-## Why This Project
-
-This repository demonstrates the execution of a complete, end-to-end machine learning computer vision pipeline. Key technical highlights include:
-- **Strict Data Splitting:** Utilizing `GroupShuffleSplit` on physical lesion IDs to prevent data leakage.
-- **Transfer Learning:** Custom fine-tuning of an EfficientNet-B0 backbone using PyTorch and dynamic class-weighting.
-- **Quantitative Evaluation:** Detailed ROC-AUC, threshold, and confusion matrix analysis on a rigorously held-out test set.
-- **Explainability:** Integration of Grad-CAM to visualize statistical model feature prioritization.
-- **Offline Application:** A fully localized Streamlit web application providing inference and heuristic image-quality assessments without cloud dependencies.
-- **Safety and Reproducibility:** Careful documentation of model limitations, false-positive constraints, and avoidance of unsupported clinical claims.
-
-## For Recruiters / Reviewers
-
-To quickly evaluate the technical depth of this project, please refer to the following generated reports:
-- **[System Architecture](reports/architecture.md)**
-- **[Dataset and Methodology](reports/dataset_and_methodology.md)**
-- **[Results and Evaluation](reports/results_and_evaluation.md)**
-- **[Application Usage Guide](reports/application_usage_guide.md)**
-- **[Reproducibility and Limitations](reports/reproducibility_and_limitations.md)**
-- **[Visual Portfolio Guide](reports/portfolio_visuals.md)**
-- **[Skills and Technologies Demonstrated](reports/skills_and_technologies.md)**
-
----
-
-## Application Usage
-
-The offline Streamlit application allows users to upload local skin lesion images for model-based binary classification. 
-
-To launch the application locally (once the environment is configured and the trained checkpoint is placed at `models/best_finetuned_model.pth`), run:
-
+Run the application:
 ```bash
-streamlit run app/app.py
+python -m streamlit run app/app.py
 ```
+*(Alternative Windows direct command: `./.venv/Scripts/python.exe -m streamlit run app/app.py`)*
 
-See the [Application Usage Guide](reports/application_usage_guide.md) for detailed instructions on uploading images, understanding model output strength, interpreting Grad-CAM, and troubleshooting errors.
+Access the application in your browser at `http://localhost:8501`.
+On the first run, if `auth/users.json` does not exist or is empty, the application will prompt you to complete a first-run local account setup to create your secure offline credentials.
 
----
+## 19. Reproducibility
 
-## Training and Evaluation
+This project emphasizes reproducibility within the bounds of repository constraints:
+- All Python dependencies are strictly pinned in `requirements.txt`.
+- Data splitting uses precise lesion-grouping to reduce data leakage.
+- Extensive evaluation artifacts are documented and stored in the `reports/` directory.
+- **Limitation:** The raw dataset and the trained model checkpoints are intentionally excluded from Git. A fresh clone requires the user to independently download the HAM10000 dataset into `data/raw/` and execute the `src/` training scripts, or manually place a pre-trained `.pth` checkpoint in `models/`.
 
-If you wish to reproduce the project's training and evaluation, the `src/` directory contains all necessary scripts. 
+## 20. Limitations
 
-You must first download the HAM10000 dataset metadata and images into `data/raw/`. Then, execute the scripts sequentially (e.g., `create_binary_dataset.py` -> `create_splits.py` -> `train.py` -> `finetune.py` -> `evaluate.py`). Detailed evaluation artifacts and visual plots will be generated in the `reports/` directory.
+This prototype has significant technical limitations:
+- The model performs binary classification rather than utilizing the original seven-class structure.
+- Evaluation is dataset-specific; there is no claim of real-world or general clinical performance.
+- The model exhibits high rates of false positives (especially on NV and BKL lesions).
+- Image acquisition variability (lighting, zoom, skin tone) strongly impacts predictions.
+- **There is no clinical validation and no diagnosis capability.**
 
----
+## 21. Safety and Responsible Use
 
-## Limitations and Safety
+This project is an AI research and educational prototype. Model probabilities represent statistical outputs from the trained model and are not measures of medical certainty. The system is not a medical diagnostic device and should not be used to make clinical decisions.
 
-- **Research/educational prototype:** This project is designed for educational exploration of deep learning.
-- **Not a medical diagnostic device:** The system cannot and should not be used for clinical decision-making.
-- **Statistical outputs:** Model probabilities are statistical outputs representing mathematical patterns, not medical certainty.
-- **No clinical validity:** Performance on the held-out test set does not establish clinical validity or safety.
-- **Dataset limitations:** The model inherits all biases and limitations of the original HAM10000 dataset, and there is no claim of generalization to real-world clinical settings.
-- **Threshold context:** The 0.50 threshold is an application-level decision boundary for binary mapping, not a clinically optimized threshold.
+## 22. Results and Project Status
 
-> [!WARNING]
-> This project is an AI research and educational prototype. Model probabilities represent statistical outputs from the trained model and are not measures of medical certainty. The system is not a medical diagnostic device and should not be used to make clinical decisions.
+Current status: Functional research and educational prototype.
+The current implementation successfully integrates a fine-tuned model, held-out evaluation reports, error analysis, a robust local Streamlit application with Grad-CAM explainability, image-quality analysis, local authentication, and prediction history. It executes entirely offline.
+
+## 23. Future Improvements
+
+Technically reasonable future work could include:
+- Expanding to multiclass classification.
+- Utilizing advanced class balancing techniques during training.
+- Conducting external validation on completely distinct datasets.
+- Performing formal probability calibration analysis.
+- Developing a stronger, deep-learning-based image-quality assessment module.
+- Comparing multiple architecture backbones (e.g., ResNet, ConvNeXt).
+- Improving the packaging and distribution of the application.
+
+## 24. License / Dataset License
+
+The source code is provided for research and educational review.
+The HAM10000 dataset is utilized under its original academic licensing terms (CC BY-NC 4.0). Please refer to the official ISIC Archive for dataset usage rights and restrictions.

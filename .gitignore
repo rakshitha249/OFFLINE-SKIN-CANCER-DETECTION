@@ -48,3 +48,6 @@ data/raw/*
 data/processed/*
 !data/processed/.gitkeep
 auth/users.json
+
+# Local prediction history - do not commit
+history/prediction_history.csv

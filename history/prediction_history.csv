@@ -1,6 +1,0 @@
-timestamp,image_name,prediction,malignant_probability,non_malignant_probability,confidence,image_quality
-2026-09-02 19:55:07,ISIC_0024344.jpg,Malignant-Suspicious,0.7827566862106323,0.21724331378936768,Higher model confidence,Good
-2026-09-02 19:55:36,ISIC_0024344.jpg,Malignant-Suspicious,0.7827566862106323,0.21724331378936768,Higher model confidence,Good
-2026-09-02 20:07:08,ISIC_0024306.jpg,Non-malignant,0.07003281265497208,0.9299671873450279,Higher model confidence,Good
-2026-09-02 20:08:48,ISIC_0024307.jpg,Non-malignant,0.14277495443820953,0.8572250455617905,Higher model confidence,Good
-2026-09-02 20:09:19,ISIC_0024308.jpg,Non-malignant,0.2374311089515686,0.7625688910484314,Higher model confidence,Good

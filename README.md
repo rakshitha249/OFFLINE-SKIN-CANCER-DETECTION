@@ -232,14 +232,22 @@ OFFLINE-SKIN-CANCER-DETECTION/
 
 Once the environment is configured and the model checkpoint is present in `models/`:
 
-Run the application:
+### Local Offline Application
+Run the local application:
 ```bash
 python -m streamlit run app/app.py
 ```
 *(Alternative Windows direct command: `./.venv/Scripts/python.exe -m streamlit run app/app.py`)*
 
 Access the application in your browser at `http://localhost:8501`.
-On the first run, if `auth/users.json` does not exist or is empty, the application will prompt you to complete a first-run local account setup to create your secure offline credentials.
+On the first run, if `auth/users.json` does not exist or is empty, the application will prompt you to complete a first-run local account setup to create your secure offline credentials. This mode features persistent local history and fully offline inference.
+
+### Public Hosted Demo
+A separate, lightweight entrypoint is provided for public hosting (e.g., Streamlit Community Cloud) that removes local authentication and restricts history to the active session.
+```bash
+python -m streamlit run app/public_demo.py
+```
+**Model Source:** For public deployment, the model checkpoint (`best_finetuned_model.pth`) is securely hosted as a GitHub Release asset (v1.0-model) rather than tracked in Git. The deployment platform must configure a `MODEL_URL` environment variable containing the direct-download link to the `.pth` file, which the public demo downloads and caches on startup.
 
 ## 19. Reproducibility
 

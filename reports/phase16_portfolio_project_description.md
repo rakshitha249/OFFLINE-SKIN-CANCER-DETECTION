@@ -1,0 +1,10 @@
+# Portfolio Project Description
+
+### Short version
+SKIN VISION is an AI research and educational prototype for binary skin-lesion image classification. It features a fine-tuned EfficientNet-B0 model trained on HAM10000-derived data to distinguish between Non-malignant and Malignant-Suspicious image patterns.
+
+### Medium version
+SKIN VISION is an offline AI research and educational prototype built to explore binary skin-lesion image classification using deep learning. Powered by a fine-tuned EfficientNet-B0 model trained on HAM10000-derived data, the system evaluates images and outputs an estimated probability based on a 0.50 decision threshold. It includes a robust Streamlit application with Grad-CAM explainability, basic image-quality analysis, local authentication, and prediction history tracking. Emphasizing transparency and responsible AI, the prototype explicitly functions as a technical and educational demonstration rather than a medical diagnostic device, featuring both a fully offline/local inference version and a hosted public demo.
+
+### Technical version
+SKIN VISION is an AI research prototype built in Python with PyTorch, focusing on binary classification of skin lesions using a fine-tuned EfficientNet-B0 architecture. The model was trained on the HAM10000 dataset, mapped to binary labels (Non-malignant vs. Malignant-Suspicious) to explore threshold behaviors and explainability. On a held-out test set of 1494 images, the fine-tuned model achieved an accuracy of 68.47% and an ROC-AUC of 85.37%. The end-to-end pipeline includes image preprocessing, standard ImageNet normalization, and a Sigmoid activation to estimate model probabilities based on a 0.50 application decision threshold. The user interface is developed with Streamlit, incorporating Grad-CAM visualization for spatial explainability and programmatic image-quality analysis. The system supports both a secure offline/local inference version with PBKDF2-HMAC-SHA256 password hashing for authentication, and a hosted public demonstration that pulls the model checkpoint dynamically from a GitHub Release.

@@ -1,0 +1,7 @@
+# Master's Application Project Description
+
+**SKIN VISION: An Educational Prototype for Binary Skin-Lesion Classification and Explainability**
+
+This project serves as a comprehensive case study in applying machine learning and software engineering principles to computer vision problems. Utilizing the HAM10000 dataset, the task was formulated as a binary classification problem (Non-malignant vs. Malignant-Suspicious) to explore the nuances of deep learning in a complex visual domain. The core model is an EfficientNet-B0 architecture fine-tuned via PyTorch, achieving a ROC-AUC of 85.37% and an accuracy of 68.47% on a strictly held-out test set of 1494 images.
+
+A key focus of this project was methodology and reproducibility. The pipeline includes rigorous lesion-grouped data splitting to prevent data leakage, detailed error analysis across false positive/negative distributions, and threshold analysis. To bridge the gap between model development and deployment, I built an offline-first Streamlit application featuring local PBKDF2-HMAC-SHA256 authentication and inference. The application emphasizes explainability by providing continuous model probabilities, threshold-distance context, and Grad-CAM visualizations to interpret spatial attention. By separating the system into a secure offline version and a lightweight hosted demonstration, the project demonstrates an end-to-end understanding of ML lifecycle management, robust evaluation, and responsible AI practices over unsupported clinical claims.

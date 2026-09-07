@@ -1,7 +1,6 @@
-# Offline Skin Lesion Analyzer
+# SKIN VISION — Offline Skin Lesion Analyzer
 
-An offline AI research and educational prototype for analyzing skin-lesion images using a fine-tuned EfficientNet-B0 binary classifier, with model probability outputs, threshold context, image-quality analysis, Grad-CAM explainability, local prediction history, and local authentication.
-
+SKIN VISION is an AI research and educational prototype for binary skin-lesion image classification. It uses a fine-tuned EfficientNet-B0 model trained on HAM10000-derived data and provides model probabilities, decision-threshold context, image-quality analysis, and Grad-CAM explainability. The project includes a fully offline/local inference application and a separate hosted Streamlit demonstration.
 > [!WARNING]
 > **Safety Disclaimer:** This project is an AI research and educational prototype. Model probabilities represent statistical outputs from the trained model and are not measures of medical certainty. The system is not a medical diagnostic device and should not be used to make clinical decisions.
 
